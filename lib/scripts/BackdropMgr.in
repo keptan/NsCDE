@@ -5,8 +5,8 @@
 #
 
 UseGettext {$NSCDE_ROOT/share/locale;NsCDE-BackdropMgr}
-WindowLocaleTitle {Style Manager - Backdrop}
-WindowSize 480 512
+WindowLocaleTitle {Moe Edition Style Manager - Backdrop}
+WindowSize 480 554
 Colorset 22
 
 Init
@@ -64,6 +64,7 @@ Begin
    Set $Performed = 0
    Set $PreviewContaminated = 0
    Set $PhotoMode = 0
+   Set $AnimeMode = 0
    Set $DefaultPalette = $CurrentPalette
 
    # For a start, select 1st Backdrop and display preview
@@ -133,6 +134,12 @@ Begin
    Begin
      Do {SendToModule BackdropMgr SendString 12 1 } $MSG
    End
+
+   Set $MSG=(ReceivFromScript $ANIME_BROWSER)
+   If $MSG <> {No message} Then
+   Begin
+     Do {SendToModule BackdropMgr SendString 20 1 } $MSG
+   End
 End
 
 QuitFunc
@@ -171,6 +178,8 @@ Widget 3
    Colorset 4
 End
 
+#this is the preview window
+#we want it to render our chosen anime girl or something
 Widget 4
    Property
    Size 262 262
@@ -239,7 +248,19 @@ Widget 5
          Set $BackdropPreviewCmd = {$NSCDE_TOOLSDIR/backdropmgr -t -e -c } $Ncolors { -g } $CurrentPalette { -D } $ColorVariant { -b "} $BackdropName {"}
          Set $BackdropPreview = (GetOutput $BackdropPreviewCmd 2 -1)
          Do {Colorset 60 TiledPixmap } $BackdropPreview
-         ChangeColorset 4 60
+	
+		 #if we're using an anime picture we would like to preview it here!		
+         If $AnimeMode == 0 Then
+		 Begin
+         	ChangeColorset 4 60
+		 End
+		 Else
+		 Begin
+				 Do {Exec exec convert -size 262x262 tile:"}  $BackdropPreview {" miff:- | convert - \( $FVWM_USERDIR/photos/Anime/dithered.png -resize 200 \) -gravity Center -composite $FVWM_USERDIR/tmp/icon.png}
+				 ChangeIcon 4 (GetOutput {sleep 0.2; echo $FVWM_USERDIR/tmp/icon.png} 1 -1) 
+		 End
+		 #end of anime considerations
+
 
          # Calculate chars in the current backdrop name
          Set $StrLen = 1
@@ -589,7 +610,7 @@ Widget 11
                   End
                   Else
                   Begin
-                     Do {Exec exec @KSH@ -c 'convert }
+                     Do {Exec exec /usr/bin/ksh93 -c 'convert }
                      {\( $[FVWM_USERDIR]/backer/bgcache/$[infostore.monitordata]/$[infostore.monitorbackdata].png \) }
                      {\( -size $[monitor.$[monitor.current].width]x$[monitor.$[monitor.current].height] tile:} $BackdropPreview
                      { -geometry +$[monitor.$[monitor.current].x]+$[monitor.$[monitor.current].y] -compose over \) -composite "}
@@ -628,7 +649,7 @@ Widget 11
                   Begin
                      If $PixmapVariant == {TiledPixmap} Then
                      Begin
-                        Do {Exec exec @KSH@ -c 'convert }
+                        Do {Exec exec /usr/bin/ksh93 -c 'convert }
                         {\( $[FVWM_USERDIR]/backer/bgcache/$[infostore.monitordata]/$[infostore.monitorbackdata].png \) }
                         {\( -size $[monitor.$[monitor.current].width]x$[monitor.$[monitor.current].height] tile:} $PhotoPath
                         { -geometry +$[monitor.$[monitor.current].x]+$[monitor.$[monitor.current].y] -compose over \) -composite }
@@ -636,7 +657,7 @@ Widget 11
                      End
                      If $PixmapVariant == {AspectPixmap} Then
                      Begin
-                        Do {Exec exec @KSH@ -c 'convert }
+                        Do {Exec exec /usr/bin/ksh93 -c 'convert }
                         {\( $[FVWM_USERDIR]/backer/bgcache/$[infostore.monitordata]/$[infostore.monitorbackdata].png \) }
                         {\( } $PhotoPath { -resize $[monitor.$[monitor.current].width]x$[monitor.$[monitor.current].height]\! }
                         { -geometry +$[monitor.$[monitor.current].x]+$[monitor.$[monitor.current].y] -compose over \) -composite }
@@ -644,7 +665,7 @@ Widget 11
                      End
                      If $PixmapVariant == {Pixmap} Then
                      Begin
-                        Do {Exec exec @KSH@ -c 'convert }
+                        Do {Exec exec /usr/bin/ksh93 -c 'convert }
                         {\( $[FVWM_USERDIR]/backer/bgcache/$[infostore.monitordata]/$[infostore.monitorbackdata].png \) }
                         {\( -resize $[monitor.$[monitor.current].width]x$[monitor.$[monitor.current].height] }
                         {-gravity center -extent $[monitor.$[monitor.current].width]x$[monitor.$[monitor.current].height] }
@@ -810,7 +831,7 @@ End
 
 Widget 14
    Property
-   Size 464 116
+   Size 464 158
    Position 8 334
    Type Rectangle
 End
@@ -818,14 +839,14 @@ End
 Widget 15
    Property
    Size 472 1
-   Position 3 460
+   Position 3 499
    Type Rectangle
 End
 
 Widget 16
    Property
    Size 90 26
-   Position 16 472
+   Position 16 509 
    Type PushButton
    Flags NoReliefString
    LocaleTitle {OK}
@@ -858,7 +879,7 @@ End
 Widget 17
    Property
    Size 90 26
-   Position 135 472
+   Position 135 509 
    Type PushButton
    Flags NoReliefString
    LocaleTitle {Apply}
@@ -867,19 +888,28 @@ Widget 17
       Case message of
       SingleClic :
       Begin
-         If $PhotoMode == 0 Then
+         If $AnimeMode == 1 Then
          Begin
             # Remove preview mode if present.
             Set $PreviewMode = 0
-            SendSignal 17 1
+            SendSignal 17 3
             Set $Performed = 1
          End
          Else
          Begin
-            # Remove preview mode if present.
-            Set $PreviewMode = 0
-            SendSignal 17 2
-            Set $Performed = 1
+			If $PhotoMode == 0 Then
+			Begin
+            	# Remove preview mode if present.
+            	Set $PreviewMode = 0
+            	SendSignal 17 1
+            	Set $Performed = 1
+			End
+			Else
+				Begin
+						Set $PreviewMode = 0
+						SendSignal 17 2
+						Set $Performed = 1
+				End
          End
       End
       1 :
@@ -956,12 +986,49 @@ Widget 17
             Do {Schedule 120 f_SetFvwm3NonGlobalBackground}
          End
       End
-End
+	  3 :
+	  Begin
+	  #this is the anime mode, here we will bypass the incredibly confusing backdropmgr
+	  #ok lets go
+	  #If $ColorVariant == $CurrDesk Then 
+	  #we're arent going to support weird palletes rn
+	  #Begin
+		If (GetValue 6) == 0 Then #if we're only setting the current desktop
+		Begin
+			Set $BackdropNameCmd = {$NSCDE_TOOLSDIR/backdropmgr -n } (GetValue 5)
+         	Set $BackdropName = (GetOutput $BackdropNameCmd 1 -1)
+         	Set $BackdropPreviewCmd = {$NSCDE_TOOLSDIR/backdropmgr -t -e -c } $Ncolors { -g } $CurrentPalette { -D } $ColorVariant { -b "} $BackdropName {"}
+         	Set $BackdropPreview = (GetOutput $BackdropPreviewCmd 2 -1)
+			Do {Exec exec convert -size } $ScreenXY  { tile:"}  $BackdropPreview {" miff:- | convert - \( $FVWM_USERDIR/photos/Anime/dithered.png  -resize 600 \) -gravity NorthWest -geometry +5+5  -composite $FVWM_USERDIR/photos/} $CurrDesk {-Anime.png}
+
+			Set $PhotoSetCmd = {$NSCDE_TOOLSDIR/backdropmgr -D } $CurrDesk { -a } $PixmapVariant { -x } $ScreenXY { -s "} $CurrDesk {-Anime"}
+			Set $PhotoSet = (GetOutput $PhotoSetCmd 1 -1)
+
+			#generate the colored tileing thing, add the anime girl, send it to the right place, boom! maybe delete the file that is there currently
+		End
+		If (GetValue 6) <> 0 Then
+		Begin
+			Set $deskiter = 0
+			While $desjiter < $DeskNo Do
+			Begin
+				Set $deskiter = (Add $deskiter 1)
+				#the command to generate the pallete, deskiter goes in space of -D 
+			End
+		End
+		Do {f_Readcfg Backdrops}
+         If $Fvwm3DesktopNonGlobalMode == 1 Then
+         Begin
+            Do {f_SetupMonitorData}
+            Do {Schedule 120 f_SetFvwm3NonGlobalBackground}
+         End
+		End
+		End
+
 
 Widget 18
    Property
    Size 90 26
-   Position 254 472
+   Position 254 509 
    Type PushButton
    Flags NoReliefString
    LocaleTitle {Close}
@@ -990,7 +1057,7 @@ End
 Widget 19
    Property
    Size 90 26
-   Position 376 472
+   Position 376 509 
    Type PushButton
    Flags NoReliefString
    LocaleTitle {Help}
@@ -1006,4 +1073,41 @@ Widget 19
          Do {f_DisplayURL "$[gt.Backdrop Style Manager]" html/NsCDE-BackdropMgr.html}
       End
 End
+
+Widget 20
+	Property
+	Size 236 22
+	Position 22 454
+	Type PushButton
+	Flags NoReliefString
+	Value 0
+	LocaleTitle { Custom Anime Girl ... }
+	Font "xft::pixelsize=15"
+   	Main
+	Case message of
+		SingleClic :
+			Begin
+				Set $ARG={FilePicker }
+				Set $ANIME_BROWSER=(LaunchScript $ARG )
+			End
+		1 :
+			Begin
+            Set $CheckPhotoFileCmd = {$NSCDE_TOOLSDIR/backdropmgr -T } (LastString)
+            Set $CheckPhotoFileType = (GetOutput $CheckPhotoFileCmd 1 1)
+            Set $CheckPhotoFileConv = (GetOutput $CheckPhotoFileCmd 2 1)
+            Set $CheckPhotoFileBaseName = (GetOutput $CheckPhotoFileCmd 3 -1)
+            If $CheckPhotoFileType == {pic} Then
+               Begin
+                  Do {Exec exec convert "} (LastString) {" -dither Riemersma -colors 18 "$FVWM_USERDIR/photos/Anime/dithered.png"}
+				  Set $AnimeMode = 1
+            	  SendSignal 5 1
+               End
+            Else
+            Begin
+               Do {f_Notifier "Backdrop Style Manager" "Dismiss" "NsCDE/Error.xpm" "Selected file does not appear to be in the suitable image format for setting desktop background."}
+            End
+         End
+      End
+End
+
 
